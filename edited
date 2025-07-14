@@ -1,0 +1,208 @@
+-- Egg ESP Visualizer with Auto Randomize and Desired Pet Alert
+-- Made for Grow a Garden Roblox Game
+-- GitHub-safe format
+
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local mouse = player:GetMouse()
+local camera = workspace.CurrentCamera
+
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+gui.Name = "EggESP_GUI"
+gui.ResetOnSpawn = false
+
+-- Drag support
+local function makeDraggable(frame)
+	local dragToggle, dragInput, dragStart, startPos
+	local UIS = game:GetService("UserInputService")
+	frame.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragToggle = true
+			dragStart = input.Position
+			startPos = frame.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragToggle = false
+				end
+			end)
+		end
+	end)
+	frame.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement then
+			dragInput = input
+		end
+	end)
+	UIS.InputChanged:Connect(function(input)
+		if input == dragInput and dragToggle then
+			local delta = input.Position - dragStart
+			frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		end
+	end)
+end
+
+-- GUI Frame
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0, 240, 0, 180)
+frame.Position = UDim2.new(0.02, 0, 0.4, 0)
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+frame.BackgroundTransparency = 0.2
+frame.BorderSizePixel = 0
+frame.Name = "MainUI"
+makeDraggable(frame)
+
+-- Title
+local title = Instance.new("TextLabel", frame)
+title.Text = "KenScripts Egg ESP"
+title.Size = UDim2.new(1, 0, 0, 28)
+title.BackgroundTransparency = 1
+title.TextColor3 = Color3.new(1, 1, 1)
+title.Font = Enum.Font.GothamBold
+title.TextScaled = true
+
+-- ESP Toggle
+local espToggle = Instance.new("TextButton", frame)
+espToggle.Size = UDim2.new(1, -20, 0, 30)
+espToggle.Position = UDim2.new(0, 10, 0, 35)
+espToggle.Text = "Toggle ESP"
+espToggle.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+espToggle.TextColor3 = Color3.new(1, 1, 1)
+espToggle.Font = Enum.Font.Gotham
+espToggle.TextScaled = true
+
+-- Auto Randomize Toggle
+local autoToggle = Instance.new("TextButton", frame)
+autoToggle.Size = UDim2.new(1, -20, 0, 30)
+autoToggle.Position = UDim2.new(0, 10, 0, 70)
+autoToggle.Text = "Auto Randomize: OFF"
+autoToggle.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+autoToggle.TextColor3 = Color3.new(1, 1, 1)
+autoToggle.Font = Enum.Font.Gotham
+autoToggle.TextScaled = true
+
+-- Desired Pet Input
+local desiredBox = Instance.new("TextBox", frame)
+desiredBox.Size = UDim2.new(1, -20, 0, 30)
+desiredBox.Position = UDim2.new(0, 10, 0, 105)
+desiredBox.PlaceholderText = "Put Desired Pet"
+desiredBox.Text = ""
+desiredBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+desiredBox.TextColor3 = Color3.new(1, 1, 1)
+desiredBox.Font = Enum.Font.Gotham
+desiredBox.TextScaled = true
+
+-- Randomize Button
+local randomizeButton = Instance.new("TextButton", frame)
+randomizeButton.Size = UDim2.new(1, -20, 0, 30)
+randomizeButton.Position = UDim2.new(0, 10, 0, 140)
+randomizeButton.Text = "Randomize"
+randomizeButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+randomizeButton.TextColor3 = Color3.new(1, 1, 1)
+randomizeButton.Font = Enum.Font.Gotham
+randomizeButton.TextScaled = true
+
+-- Notification popup
+local popup = Instance.new("TextLabel", gui)
+popup.Size = UDim2.new(0, 220, 0, 40)
+popup.Position = UDim2.new(1, -230, 1, -60)
+popup.AnchorPoint = Vector2.new(1,1)
+popup.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+popup.BackgroundTransparency = 0.4
+popup.TextColor3 = Color3.fromRGB(0, 255, 0)
+popup.Text = "Desired Pet Found!"
+popup.Font = Enum.Font.GothamBold
+popup.TextScaled = true
+popup.Visible = false
+
+-- Pet data (example)
+local petData = {
+	Dino = {"Triceratops", "T-Rex", "Stegosaurus"},
+	Bug = {"Ladybug", "Bee", "Dragonfly"},
+	Forest = {"Squirrel", "Deer", "Fox"},
+}
+
+-- Detect egg type from name
+local function getEggType(eggName)
+	if eggName:lower():find("dino") then return "Dino" end
+	if eggName:lower():find("bug") then return "Bug" end
+	if eggName:lower():find("forest") then return "Forest" end
+end
+
+local billboardCache = {}
+
+-- Randomize logic
+local function randomizePets()
+	for _, egg in pairs(workspace:GetDescendants()) do
+		if egg:IsA("Model") and egg.Name:lower():find("egg") then
+			local eggType = getEggType(egg.Name)
+			local adornee = egg:FindFirstChildWhichIsA("BasePart") or egg:FindFirstChildWhichIsA("UnionOperation")
+			if eggType and adornee then
+				local petList = petData[eggType]
+				if petList then
+					local chosen = petList[math.random(1, #petList)]
+					local gui = billboardCache[egg] or Instance.new("BillboardGui")
+					gui.Name = "PetESP"
+					gui.Size = UDim2.new(0, 100, 0, 30)
+					gui.Adornee = adornee
+					gui.AlwaysOnTop = true
+					gui.Parent = egg
+					billboardCache[egg] = gui
+
+					local label = gui:FindFirstChild("Label") or Instance.new("TextLabel", gui)
+					label.Name = "Label"
+					label.Size = UDim2.new(1, 0, 1, 0)
+					label.BackgroundTransparency = 1
+					label.TextColor3 = Color3.new(1, 1, 1)
+					label.Font = Enum.Font.Gotham
+					label.TextSize = 10
+					label.Text = chosen
+
+					-- Highlight if desired
+					if desiredBox.Text ~= "" and string.lower(desiredBox.Text) == string.lower(chosen) then
+						label.TextColor3 = Color3.fromRGB(0, 255, 0)
+						label.Font = Enum.Font.GothamBold
+						popup.Visible = true
+						task.delay(3, function()
+							popup.Visible = false
+						end)
+					end
+				end
+			end
+		end
+	end
+end
+
+-- Event bindings
+local espEnabled = false
+espToggle.MouseButton1Click:Connect(function()
+	espEnabled = not espEnabled
+	espToggle.Text = espEnabled and "ESP: ON" or "ESP: OFF"
+	if not espEnabled then
+		for _, gui in pairs(billboardCache) do
+			gui:Destroy()
+		end
+		billboardCache = {}
+	end
+end)
+
+randomizeButton.MouseButton1Click:Connect(function()
+	if espEnabled then
+		randomizePets()
+	end
+end)
+
+-- Auto Randomizer
+local autoEnabled = false
+autoToggle.MouseButton1Click:Connect(function()
+	autoEnabled = not autoEnabled
+	autoToggle.Text = autoEnabled and "Auto Randomize: ON" or "Auto Randomize: OFF"
+end)
+
+-- Auto loop
+task.spawn(function()
+	while true do
+		task.wait(10)
+		if autoEnabled and espEnabled then
+			randomizePets()
+		end
+	end
+end)
